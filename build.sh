@@ -8,6 +8,7 @@ ROOTFS="https://dl-cdn.alpinelinux.org/alpine/v3.13/releases/x86_64/alpine-minir
 CRBINARY="https://assets.checkra.in/downloads/linux/cli/x86_64/dac9968939ea6e6bfbdedeb41d7e2579c4711dc2c5083f91dced66ca397dc51d/checkra1n"
 
 # clean up previous attempts
+#
 umount -v work/rootfs/dev >/dev/null 2>&1
 umount -v work/rootfs/sys >/dev/null 2>&1
 umount -v work/rootfs/proc >/dev/null 2>&1
@@ -16,6 +17,7 @@ mkdir -pv work/{rootfs,iso/boot/grub}
 cd work
 
 # fetch rootfs
+#
 curl -sL "$ROOTFS" | tar -xzC rootfs
 mount -vo bind /dev rootfs/dev
 mount -vt sysfs sysfs rootfs/sys
@@ -28,6 +30,7 @@ http://dl-cdn.alpinelinux.org/alpine/edge/testing
 !
 
 # rootfs packages & services
+#
 cat << ! | chroot rootfs /usr/bin/env PATH=/usr/bin:/bin:/usr/sbin:/sbin /bin/sh
 apk upgrade
 apk add alpine-base ncurses-terminfo-base udev usbmuxd libusbmuxd-progs openssh-client sshpass usbutils
@@ -40,6 +43,7 @@ rc-update add udev-settle
 !
 
 # kernel modules
+#
 cat << ! > rootfs/etc/mkinitfs/features.d/checkn1x.modules
 kernel/drivers/usb/host
 kernel/drivers/hid/usbhid
@@ -57,21 +61,28 @@ find rootfs/lib/modules/* -type f -name "*.ko" | xargs -n1 -P`nproc` -- xz --x86
 depmod -b rootfs $(ls rootfs/lib/modules)
 
 # unmount fs
+#
 umount -v rootfs/dev
 umount -v rootfs/sys
 umount -v rootfs/proc
 
 # fetch resources
+#
 curl -Lo rootfs/usr/local/bin/checkra1n "$CRBINARY"
 
 # copy files
+#
 cp -av ../inittab rootfs/etc
 cp -av ../scripts/* rootfs/usr/local/bin
 chmod -v 755 rootfs/usr/local/bin/*
 ln -sv sbin/init rootfs/init
-ln -sv ../../etc/terminfo rootfs/usr/share/terminfo # fix ncurses
+ln -sv ../../etc/terminfo rootfs/usr/share/terminfo 
+
+# fix ncurses
+#
 
 # boot config
+#
 cp -av rootfs/boot/vmlinuz-lts iso/boot/vmlinuz
 cat << ! > iso/boot/grub/grub.cfg
 insmod all_video
@@ -82,6 +93,7 @@ boot
 !
 
 # initramfs
+#
 pushd rootfs
 rm -rfv tmp/*
 rm -rfv boot/*
@@ -91,4 +103,5 @@ find . | cpio -oH newc | xz -C crc32 --x86 -vz9eT0 > ../iso/boot/initramfs.xz
 popd
 
 # iso creation
+#
 grub-mkrescue -o "checkn1x-$VERSION.iso" iso --compress=xz
